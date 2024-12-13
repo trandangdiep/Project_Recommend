@@ -99,7 +99,6 @@ def display_recommended_products(recommended_products,df_output,cols=5):
                         expander.write(truncated_description)
 # recommended collab
 def recommended_collab(userId,df_sub,df_select,algorithm_KNN):
-    # df_score = df_sub["ma_san_pham"]
     # #loại bỏ những sản phẩm đã được mua
     df_list= df_select['ma_san_pham'].tolist()
     df_score = df_sub[~df_sub['ma_san_pham'].isin(df_list)]
@@ -114,35 +113,37 @@ def recommended_collab(userId,df_sub,df_select,algorithm_KNN):
     #xóa dữ liệu trùng
     df_score = df_score.drop_duplicates(subset='ma_san_pham', keep='first')
     #lọc những dòng có EstimateScore >= 4
-    df_score = df_score[df_score['EstimateScore'] >= 4].head()
-    # df_score.reset_index(drop=True,inplace=True)
+    df_score = df_score[df_score['EstimateScore'] >= 4].head(9)
     return df_score
+    
 
 
 # hàm gợi ý sản phẩm theo người dùng
-def Login_show(get_recommendations,display_recommended_products,df_customer,df_output,df_products,selected_username):
+def Login_show(recommended_collab,display_recommended_products,df_customer,df_output,df_products,selected_username,algorithm_KNN):
     # lấy id
     get_id = df_customer[df_customer['username']==selected_username[0]]['ma_khach_hang'].reset_index(drop='index')[0]
-    # # từ id đã có , lấy sản phẩm
+    # từ id đã có , lấy sản phẩm
     customer_products = df_output[df_output['ma_khach_hang'] == get_id]['ma_san_pham'].tolist()
     if customer_products:
         st.write("### Sản phẩm đã mua:")
+        # từ id sản phẩm , lấy thông tin sản phẩm
         purchased_products = df_products[df_products['ma_san_pham'].isin(customer_products)]
-        st.write(purchased_products[['ma_san_pham', 'ten_san_pham']])
+        st.dataframe(purchased_products[['ma_san_pham', 'ten_san_pham']])
 
         st.write("### Gợi ý sản phẩm liên quan:")
-        all_recommendations = pd.DataFrame()
-        for product_id in customer_products:
-            recommendations = get_recommendations(df_products, product_id, cosine_sim_new, nums=5)
-            # recommendations = recommendations[recommendations['diem_trung_binh'] >= 4]
-            all_recommendations = pd.concat([all_recommendations, recommendations])
-
-        all_recommendations = all_recommendations.drop_duplicates(subset='ma_san_pham')
-        all_recommendations = all_recommendations[~all_recommendations['ma_san_pham'].isin(customer_products)]
-        display_recommended_products(all_recommendations,df_output, cols=3)
+        recommendations = recommended_collab(
+        get_id,
+        df_output,
+        purchased_products,
+        algorithm_KNN
+        )
+        # st.dataframe(recommendations)
+        df_list = recommendations['ma_san_pham'].tolist()
+        recommendations =  df_products[df_products['ma_san_pham'].isin(df_list)]
+        display_recommended_products(recommendations,df_output, cols=3)
     else:
         st.info(f"Khách hàng **{selected_username[2]}** chưa mua sản phẩm nào.")
-        # st.write("### Gợi ý sản phẩm đang hot:")
+        st.write("### Gợi ý sản phẩm đang hot:")
 
         # lấy ra 9 sản phẩm được mua nhiều nhất
         df_top9 = df_output.groupby('ma_san_pham',as_index=False)['so_sao'].count().sort_values(by='so_sao').tail(9)
@@ -175,7 +176,7 @@ with open('model/surprise_knn_model.pkl', 'rb') as f:
 st.title("Data Science Project")
 st.write("## Product Recommendation")
 
-menu = ["Business Objective", "Build Project", "Login", "Content Based Filtering", "Collaborative Filtering"]
+menu = ["Business Objective", "Build Project", "Login", "Content Based Filtering"]
 choice = st.sidebar.selectbox('Menu', menu)
 st.sidebar.write("""#### Thành viên thực hiện:\n
                 Trần Đăng Diệp & Vũ Thị Thanh Trúc""")
@@ -287,7 +288,8 @@ elif choice == 'Login':
             
             st.session_state["logged_in"] = False
             st.rerun()
-        Login_show(get_recommendations,display_recommended_products,df_customer,df_output,df_products,selected_username)
+        Login_show(recommended_collab,display_recommended_products,df_customer,df_output,df_products,selected_username,algorithm_KNN)
+
 
    
         
@@ -391,112 +393,6 @@ elif choice == 'Content Based Filtering':
 
         else:
             st.write(f"Không tìm thấy sản phẩm với ID: {st.session_state.selected_ma_san_pham}")
-
-elif choice == "Collaborative Filtering":
-    st.write("---")
-    st.write("## Gợi ý sản phẩm tương tự")
-
-    if 'random_users' not in st.session_state:
-        st.session_state.random_users = df_output
-    if 'select_users' not in st.session_state:
-        st.session_state.select_users = None
-
-    user_options = [
-        (row['ma_khach_hang'], row['ma_san_pham'])
-        for _, row in st.session_state.random_users.iterrows()
-    ]
-
-    # Cập nhật sản phẩm mặc định trong selectbox
-    if 'selected_ma_khach_hang' in st.session_state:
-        default_user = next(
-            (option for option in user_options if option[1] == st.session_state.selected_ma_khach_hang),
-            user_options[0]
-        )
-    else:
-        default_user = user_options[0]
-
-    selected_user = st.selectbox(
-    "Chọn khách hàng",
-    options=user_options,
-    index=user_options.index(default_user),
-    format_func=lambda x: x[0]
-    )
-
-    st.write("Bạn đã chọn mã khách hàng :", selected_user[0])
-    st.session_state.selected_ma_san_pham = selected_user[1]
-
- 
-    st.write('#### Các sản phẩm đã mua :')
-    df_select = df_output[df_output['ma_khach_hang'] == selected_user[0]]
-    st.dataframe(df_select)
-    st.write('### Các sản phẩm liên quan:')
-    
-    recommendations = recommended_collab(
-        selected_user[0],
-        df_output,
-        df_select,
-        algorithm_KNN
-    )
-    recommendations = df_products[df_products['ma_san_pham'].isin(recommendations['ma_san_pham'].tolist())]
-    recommendations.reset_index(drop=True,inplace=True)
-
-
-    # hiển thị các sản phẩm phụ
-    
-    display_recommended_products_1(recommendations,recommendations['ma_san_pham'][0],df_output,cols=3)
-    # Hiển thị thêm thông tin sản phẩm
-    st.write('### Hiển thị thêm thông tin sản phẩm ')
-    st.warning('### Lưu ý: Thông tin sản phẩm chỉ thay đổi khi chọn xem thêm')
-    if 'selected_product' not in st.session_state:
-        st.session_state['selected_product'] = recommendations[0:1]
-
-
-    #Hiển thị sản phẩm chính 
-    selected_product_df = st.session_state['selected_product']
-    st.write('### ', selected_product_df['ten_san_pham'])
-    product_description = selected_product_df['mo_ta']
-    st.image(selected_product_df['hinh_anh'])
-    truncated_description = ' '.join(product_description.split()[:100])
-    st.write('##### Thông tin:')
-    st.write(truncated_description, '...')
-    st.write('#### Mã sản phẩm :',selected_product_df['ma_san_pham'])
-    st.write('#### Giá :',selected_product_df['gia_ban'],' VNĐ')
-    st.write('#### Sao :',selected_product_df['diem_trung_binh'],' ⭐')
-    luotmua = df_output[df_output['ma_san_pham']==selected_product_df['ma_san_pham']].groupby('ma_san_pham',as_index=False)['ma_khach_hang'].count()
-    if len(luotmua) > 0:
-        st.write("### Lượt mua: ", luotmua['ma_khach_hang'][0]," 🛒")
-    else:
-        st.write("### Lượt mua: 0 🛒")
-    st.write("## Đánh giá ")
-    #get product code
-    msp = selected_product_df['ma_san_pham']
-    # Vẽ biểu đồ
-    paint = df_output[df_output['ma_san_pham']==msp].groupby('so_sao',as_index=False)['ma_khach_hang'].count()
-    paint.rename(columns={"ma_khach_hang":"tong_so_luong"}, inplace=True)
-    
-    if len(paint) >0 :
-        with st.container(border=True):
-            st.write("Tổng số sao được vote từ khách hàng")
-            st.bar_chart(paint, x="so_sao", y="tong_so_luong", horizontal=True)
-                # lấy độ dài của df mã khách hàng
-        df_mkh = df_output[df_output['ma_san_pham']==msp]
-        
-        # if len(df_mkh) >= 1:
-        st.write("### Các bình luận của khách hàng ")
-        for i in range(0,len(df_mkh)):
-            if i == 3:
-                break
-            with st.container(border=True):
-                # get mã khách hàng
-                mkh = df_mkh['ma_khach_hang'].values[i]
-                # Write
-                st.write("Khách hàng : ",df_customer[df_customer['ma_khach_hang']==mkh]['ho_ten'].values[0])
-                st.write("Bình Luận  : ",df_output[df_output['ma_san_pham']==msp]['noi_dung_binh_luan'].values[i])
-                st.write("Vote : ",df_output[df_output['ma_san_pham']==msp]['so_sao'].values[i],' ⭐')
-                st.write("Ngày bình luận : ",df_output[df_output['ma_san_pham']==msp]['ngay_binh_luan'].values[i])
-            
-    else:
-        st.write("### Sản chưa có lượt đánh giá nào!")
             
 
 
