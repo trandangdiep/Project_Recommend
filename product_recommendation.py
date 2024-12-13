@@ -223,8 +223,8 @@ elif choice == "Build Project":
     st.write("Thời gian tính toán : 0.08s ")
     st.write("Thơi gian tìm kiếm sản phẩm tương đồng : 0.001s ") 
     st.write('kết quả dự đoán :')
-    st.image('images/after_build_1.png',width=900)
     st.image('images/after_build_model_1.png',width=900)
+    st.image('images/after_build_1.png',width=900)
 
     #### Collaborative Filtering
     st.write("## II. Collaborative Filtering")
