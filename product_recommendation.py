@@ -176,7 +176,7 @@ with open('model/surprise_knn_model.pkl', 'rb') as f:
 st.title("Data Science Project")
 st.write("## Product Recommendation")
 
-menu = ["Business Objective", "Build Project", "Login", "Content Based Filtering"]
+menu = ["Business Objective", "Build Project", "Login - Collaborative Filtering", "Content Based Filtering"]
 choice = st.sidebar.selectbox('Menu', menu)
 st.sidebar.write("""#### Thành viên thực hiện:\n
                 Trần Đăng Diệp & Vũ Thị Thanh Trúc""")
@@ -250,7 +250,7 @@ elif choice == "Build Project":
              lọc EstimateScore >= 4 """)
     st.image('images/build_Collab_4.png',width=900)
 
-elif choice == 'Login':
+elif choice == 'Login - Collaborative Filtering':
     # lưu trạng thái đăng nhập
     if "logged_in" not in st.session_state:
         st.session_state["logged_in"] = False
